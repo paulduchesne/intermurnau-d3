@@ -1,0 +1,223 @@
+<html>
+  <head>
+
+<title>Intermurnau Works</title>
+    <link href="https://fonts.googleapis.com/css?family=Abel:100,200,300,400,500,600,700,800,900" rel="stylesheet">
+    
+  </head>
+
+<body style='margin: 0;padding: 0'>
+  <div id="murnau_works"></div>
+  <script src="d3-sparql/build/d3-sparql.min.js"></script>
+  <script src="d3/d3.min.js"></script>
+  <script>
+
+  blocks_per_row = 4
+  block_size = 10
+  block_distance = 12
+  institute_gap = 80
+  small_font = 13
+  back_colour = '#fdfcdc'
+  back_colour = '#fed9b7'
+  text_colour = '#cc6666'
+  instep = 500
+
+    var wikidataUrl = 'http://167.99.135.149:8989/bigdata/sparql'
+    var catQuery = `
+    SELECT ?work ?workLabel ?man ?manLabel ?item ?itemLabel ?held ?heldLabel ?carrier ?carrierLabel
+    WHERE
+    {
+        ?work wdt:P1 wd:Q1019.
+        ?work wdt:P12 ?man.
+        ?man wdt:P14 ?item.
+        ?item wdt:P11 ?held.
+        ?item wdt:P17 ?carrier.
+        OPTIONAL {?item wdt:P20 ?base.  }
+        SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+    }
+    `
+
+    d3.sparql(wikidataUrl, catQuery).then(function(data) {
+      console.log(data)
+
+      data.forEach((y,u) => {y.individual = u})
+      var wikibase_link = 'http://167.99.135.149:8181/wiki/Item:'
+      data.forEach((y,u) => {y.link = wikibase_link+y.item.split('/').slice(-1)[0]})
+
+      d3.select('body').style('background-color', back_colour)
+      canvas = d3.select("#murnau_works").append("svg").attr('class', 'canv').attr('id', 'header').attr("width", '100%')
+      .attr("height", 14000).style('background-color', back_colour)
+
+      canvas.append('text')
+      .text('Intermurnau Works/Items')
+      .attr('x', 50)
+      .attr('y', 50)
+      .style('fill', text_colour)
+      .attr("font-family", "Abel")
+      .attr("font-size", 20)
+      .attr("font-weight",100)
+      .style('opacity', 1)
+
+      canvas.append('line')
+      .text('Intermurnau Works')
+      .attr('x1', 50)
+      .attr('x2', 250)
+      .attr('y1', 60)
+      .attr('y2', 60)
+      .style('stroke', text_colour)
+      .style('stroke-width', '1px')
+
+      var detail = ['This visualisation depicts','works and items stored',
+                    'in the Intermurnau wikibase.', '', 'P Duchesne.','2021-02-02.']
+
+      canvas.selectAll('g').data(detail).enter()
+      .append('text')
+      .text(d => d)
+      .attr('x', 50)
+      .attr('y', (d,i) => (i*15)+80)
+      .style('fill', text_colour)
+      .attr("font-family", "Abel")
+      .attr("font-size", 10)
+      .attr("font-weight",100)
+      .style('opacity', 1)
+
+      canvas.append('text')
+      .text('CAPTION')
+      .attr('class', 'caption1')
+      .attr('x', 50)
+      .attr('y', 50)
+      .style('fill', text_colour)
+      .attr("font-family", "Abel")
+      .attr("font-size", small_font)
+      .attr("font-weight",100)
+      .style('opacity', 0)
+
+      canvas.append('text')
+      .text('CAPTION')
+      .attr('class', 'caption2')
+      .attr('x', 50)
+      .attr('y', 50)
+      .style('fill', text_colour)
+      .attr("font-family", "Abel")
+      .attr("font-size", small_font)
+      .attr("font-weight",100)
+      .style('opacity', 0)
+
+      baseline = 50
+
+      const institute = [...new Set(data.map(i => i.heldLabel))].sort()
+
+      institute.forEach((c,o) => {
+        ii = c.split(/[ ,]+/)
+
+        canvas.selectAll('g').data(ii).enter()
+        .append('text')
+        .text(d => d)
+        .attr('class', 'inst_name')
+        .attr('x', o*institute_gap+instep)
+        .attr('y', (d,i) => baseline+(i*20))
+        .style('fill', 'black')
+        .attr("font-family", "Abel")
+        .attr("font-size", small_font)
+        .attr("font-weight",900)
+
+        canvas.append('line')
+        .attr('class', 'lines')
+        .attr('x1', o*institute_gap+instep-3)
+        .attr('x2', o*institute_gap+instep-3)
+        .attr('y1', baseline-10)
+        .attr('y2', 1250)
+        .style('fill', 'black')
+        .style('stroke', '#888888')
+        .style('stroke-width', '1px')
+        .style('opacity', 0.2)
+      })
+
+      baseline = baseline+(block_distance*10)
+
+      var work_name = [...new Set(data.map(i => i.workLabel))].sort()
+      work_name.forEach((a,m) => {
+        var work_data = data.filter(x => x.workLabel == a)
+
+        canvas.append('text')
+        .text(a)
+        .attr('class', 'work_name')
+        .attr('x', instep-20)
+        .attr('y', baseline+8)
+        .style('fill', 'black')
+        .attr("font-family", "Abel")
+        .attr("font-size", small_font)
+        .attr("font-weight",900)
+        .attr('text-anchor', 'end')
+        .style('opacity', 1)
+
+        var item_count = []
+
+      institute.forEach((b,n) => {
+      var inst = work_data.filter(z => z.heldLabel == b)
+
+      item_count.push(inst.length)
+
+          canvas.selectAll('g')
+          .data(inst).enter().append('rect')
+          .attr('class', 'blocks')
+          .attr('id', d => 'lower-'+d.individual)
+          .attr('x', (d,i) => n*institute_gap+instep+(i%blocks_per_row)*block_distance)
+          .attr('y', (d,i) => baseline+Math.floor(i / blocks_per_row)*block_distance)
+          .attr('width', block_size)
+          .attr('height', block_size)
+          .style('opacity', 1)
+          .style('fill', (d,i) => {
+            if(d.manLabel.includes('Nitrate')) {return '#f07167'}
+            else if(d.manLabel.includes('Film')) {return '#0081a7'}
+            else {return '#00afb9'}})
+
+          canvas.selectAll('g')
+          .data(inst).enter()
+          .append('a')
+          .attr("xlink:href", d => d.link)
+          .append('rect')
+          .attr('class', 'blocks-overlay')
+          .attr('hook', d => d.individual)
+          .attr('line1', d => d.manLabel)
+          .attr('line2', d => d.itemLabel)
+          .attr('x', (d,i) => n*institute_gap+instep+(i%blocks_per_row)*block_distance)
+          .attr('y', (d,i) => baseline+Math.floor(i / blocks_per_row)*block_distance)
+          .attr('width', block_distance)
+          .attr('height', block_distance)
+          .style('opacity', 0)
+          .style('fill', 'red')
+          .on('mouseover', function(d) {
+            var blocknumb = d3.select(this).attr('hook')
+            d3.selectAll('.blocks').style('opacity', 0.1)
+            d3.selectAll('.inst_name').style('opacity', 0.1)
+            d3.selectAll('.work_name').style('opacity', 0.1)
+            d3.select('#lower-'+blocknumb).style('opacity', '1')
+            var loc_x = parseInt(d3.select(this).attr('x'))+20
+            var loc_y = parseInt(d3.select(this).attr('y'))+10
+            d3.select('.caption1').attr('x', loc_x).attr('y', loc_y)
+            d3.select('.caption1').text(d3.select(this).attr('line1'))
+            d3.select('.caption1').style('opacity', 1)
+            d3.select('.caption2').attr('x', loc_x).attr('y', parseInt(loc_y)+20)
+            d3.select('.caption2').text(d3.select(this).attr('line2'))
+            d3.select('.caption2').style('opacity', 1)
+          })
+          .on('mouseout', function(d) {
+            d3.selectAll('.blocks').style('opacity', 1)
+            d3.selectAll('.inst_name').style('opacity', 1)
+            d3.selectAll('.work_name').style('opacity', 1)
+            d3.select('.caption1').style('opacity', 0)
+            d3.select('.caption2').style('opacity', 0)
+          })
+      })
+
+      baseline = baseline + Math.floor(d3.max(item_count) / blocks_per_row)*block_distance + (block_distance*4)
+      d3.selectAll('.lines').attr('y2', baseline)
+      d3.selectAll('.canv').attr('height', baseline+50)
+      })
+
+})
+
+  </script>
+  </body>
+</html>
